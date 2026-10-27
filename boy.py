@@ -1,10 +1,55 @@
 from pico2d import (
     load_image, get_canvas_width,
     SDL_KEYDOWN, SDL_KEYUP,
-    SDLK_LEFT, SDLK_RIGHT, SDLK_SPACE
+    SDLK_LEFT, SDLK_RIGHT, SDLK_SPACE, SDLK_a
 )
 from transitions import Machine
 import time
+
+
+class AutoRun:
+    def enter(self, boy):
+        boy.frame = 0
+        boy.left_pressed = False
+        boy.right_pressed = False
+
+        # AutoRun에 진입할 때마다 시작 시간 기록
+        self.start_time = time.monotonic()
+
+    def update(self, boy):
+        # 5초가 지나면 IDLE로 전환하고 자동 이동 종료
+        if time.monotonic() - self.start_time >= 5.0:
+            boy.finish_auto_run()
+            return
+
+        boy.frame = (boy.frame + 1) % 8
+        boy.x += boy.face_dir * boy.speed * 2
+
+        left_edge = 75
+        right_edge = get_canvas_width() - 75
+
+        if boy.x >= right_edge:
+            boy.x = right_edge
+            boy.face_dir = -1
+
+        elif boy.x <= left_edge:
+            boy.x = left_edge
+            boy.face_dir = 1
+
+    def draw(self, boy):
+        if boy.face_dir == 1:
+            row = 100
+        else:
+            row = 0
+
+        # 100×100에서 150×150으로 확대
+        # 이미지 아래쪽 높이를 유지하도록 중심을 25 올림
+        boy.image.clip_draw(
+            boy.frame * 100, row,
+            100, 100,
+            boy.x, boy.y + 25,
+            150, 150
+        )
 
 
 class Boy:
@@ -18,10 +63,11 @@ class Boy:
         self.right_pressed = False
 
         self.image = load_image('animation_sheet.png')
+        self.auto_run = AutoRun()
 
         self.machine = Machine(
             model=self,
-            states=['IDLE', 'SLEEP', 'RUN'],
+            states=['IDLE', 'SLEEP', 'RUN', 'AUTO_RUN'],
             initial='IDLE',
             transitions=[
                 {
@@ -34,7 +80,7 @@ class Boy:
                     'source': 'SLEEP',
                     'dest': 'IDLE'
                 },
-                                {
+                {
                     'trigger': 'start_run',
                     'source': ['IDLE', 'SLEEP'],
                     'dest': 'RUN'
@@ -43,6 +89,21 @@ class Boy:
                     'trigger': 'stop_run',
                     'source': 'RUN',
                     'dest': 'IDLE'
+                },
+                {
+                    'trigger': 'start_auto_run',
+                    'source': 'IDLE',
+                    'dest': 'AUTO_RUN'
+                },
+                {
+                    'trigger': 'finish_auto_run',
+                    'source': 'AUTO_RUN',
+                    'dest': 'IDLE'
+                },
+                {
+                    'trigger': 'start_run',
+                    'source': ['IDLE', 'SLEEP', 'AUTO_RUN'],
+                    'dest': 'RUN'
                 }
             ],
             auto_transitions=False
@@ -62,14 +123,39 @@ class Boy:
     def on_enter_RUN(self):
         self.frame = 0
 
+    def on_enter_AUTO_RUN(self):
+        self.auto_run.enter(self)
+
     def handle_event(self, event):
-        # 자는 중 SPACE를 누르면 IDLE로 돌아간다.
+        # IDLE에서 A키를 누르면 AutoRun으로 전환
+        if self.state == 'IDLE':
+            if event.type == SDL_KEYDOWN and event.key == SDLK_a:
+                self.start_auto_run()
+                return
+
+        # AutoRun 중 방향키를 누르면 일반 RUN으로 전환
+        if self.state == 'AUTO_RUN':
+            if event.type == SDL_KEYDOWN:
+                if event.key == SDLK_LEFT:
+                    self.left_pressed = True
+                    self.right_pressed = False
+                    self.face_dir = -1
+                    self.start_run()
+
+                elif event.key == SDLK_RIGHT:
+                    self.left_pressed = False
+                    self.right_pressed = True
+                    self.face_dir = 1
+                    self.start_run()
+
+            return
+
+        # 자는 중 SPACE를 누르면 IDLE로 전환
         if self.state == 'SLEEP':
             if event.type == SDL_KEYDOWN and event.key == SDLK_SPACE:
                 self.wake_up()
                 return
 
-        # 자는 중에도 방향키 입력을 처리한다.
         if event.type == SDL_KEYDOWN:
             if event.key == SDLK_LEFT:
                 self.left_pressed = True
@@ -90,7 +176,6 @@ class Boy:
         else:
             return
 
-        # IDLE과 SLEEP 모두 RUN으로 전환할 수 있다.
         if self.left_pressed or self.right_pressed:
             if self.state in ['IDLE', 'SLEEP']:
                 self.start_run()
@@ -99,7 +184,10 @@ class Boy:
                 self.stop_run()
 
     def update(self):
-        if self.state == 'IDLE':
+        if self.state == 'AUTO_RUN':
+            self.auto_run.update(self)
+
+        elif self.state == 'IDLE':
             self.frame = (self.frame + 1) % 5
 
             if time.monotonic() - self.idle_start_time >= 5.0:
@@ -122,15 +210,16 @@ class Boy:
             elif direction < 0:
                 self.face_dir = -1
 
-            # 이미지 폭이 100이므로 중심을 양끝에서 50만큼 제한
             self.x = max(
                 50,
                 min(get_canvas_width() - 50, self.x)
             )
 
     def draw(self):
-        if self.state == 'RUN':
-            # 달리기: 오른쪽 행 100, 왼쪽 행 0
+        if self.state == 'AUTO_RUN':
+            self.auto_run.draw(self)
+
+        elif self.state == 'RUN':
             if self.face_dir == 1:
                 row = 100
             else:
