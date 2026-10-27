@@ -99,6 +99,11 @@ class Boy:
                     'trigger': 'finish_auto_run',
                     'source': 'AUTO_RUN',
                     'dest': 'IDLE'
+                },
+                {
+                    'trigger': 'start_run',
+                    'source': ['IDLE', 'SLEEP', 'AUTO_RUN'],
+                    'dest': 'RUN'
                 }
             ],
             auto_transitions=False
@@ -128,8 +133,21 @@ class Boy:
                 self.start_auto_run()
                 return
 
-        # AutoRun의 취소 입력은 이후 단계에서 추가
+        # AutoRun 중 방향키를 누르면 일반 RUN으로 전환
         if self.state == 'AUTO_RUN':
+            if event.type == SDL_KEYDOWN:
+                if event.key == SDLK_LEFT:
+                    self.left_pressed = True
+                    self.right_pressed = False
+                    self.face_dir = -1
+                    self.start_run()
+
+                elif event.key == SDLK_RIGHT:
+                    self.left_pressed = False
+                    self.right_pressed = True
+                    self.face_dir = 1
+                    self.start_run()
+
             return
 
         # 자는 중 SPACE를 누르면 IDLE로 전환
