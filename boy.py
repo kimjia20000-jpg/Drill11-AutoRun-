@@ -16,10 +16,9 @@ class AutoRun:
     def update(self, boy):
         boy.frame = (boy.frame + 1) % 8
 
-        # 바라보는 방향으로 자동 이동
-        boy.x += boy.face_dir * boy.speed
+        # 일반 달리기보다 2배 빠르게 이동
+        boy.x += boy.face_dir * boy.speed * 2
 
-        # 현재 단계에서는 화면 끝에 도착하면 위치만 제한
         boy.x = max(
             50,
             min(get_canvas_width() - 50, boy.x)
