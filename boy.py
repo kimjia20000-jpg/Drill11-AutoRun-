@@ -12,14 +12,19 @@ class AutoRun:
         boy.frame = 0
         boy.left_pressed = False
         boy.right_pressed = False
-    
-    def update(self, boy):
-        boy.frame = (boy.frame + 1) % 8
 
-        # 일반 RUN의 2배 속도로 자동 이동
+        # AutoRun에 진입할 때마다 시작 시간 기록
+        self.start_time = time.monotonic()
+
+    def update(self, boy):
+        # 5초가 지나면 IDLE로 전환하고 자동 이동 종료
+        if time.monotonic() - self.start_time >= 5.0:
+            boy.finish_auto_run()
+            return
+
+        boy.frame = (boy.frame + 1) % 8
         boy.x += boy.face_dir * boy.speed * 2
 
-        # 확대된 이미지 폭 150의 절반만큼 경계 확보
         left_edge = 75
         right_edge = get_canvas_width() - 75
 
@@ -89,6 +94,11 @@ class Boy:
                     'trigger': 'start_auto_run',
                     'source': 'IDLE',
                     'dest': 'AUTO_RUN'
+                },
+                {
+                    'trigger': 'finish_auto_run',
+                    'source': 'AUTO_RUN',
+                    'dest': 'IDLE'
                 }
             ],
             auto_transitions=False
