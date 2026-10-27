@@ -30,10 +30,13 @@ class AutoRun:
         else:
             row = 0
 
+        # 100×100에서 150×150으로 확대
+        # 이미지 아래쪽 높이를 유지하도록 중심을 25 올림
         boy.image.clip_draw(
             boy.frame * 100, row,
             100, 100,
-            boy.x, boy.y
+            boy.x, boy.y + 25,
+            150, 150
         )
 
 
