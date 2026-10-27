@@ -12,17 +12,24 @@ class AutoRun:
         boy.frame = 0
         boy.left_pressed = False
         boy.right_pressed = False
-
+    
     def update(self, boy):
         boy.frame = (boy.frame + 1) % 8
 
-        # 일반 달리기보다 2배 빠르게 이동
+        # 일반 RUN의 2배 속도로 자동 이동
         boy.x += boy.face_dir * boy.speed * 2
 
-        boy.x = max(
-            50,
-            min(get_canvas_width() - 50, boy.x)
-        )
+        # 확대된 이미지 폭 150의 절반만큼 경계 확보
+        left_edge = 75
+        right_edge = get_canvas_width() - 75
+
+        if boy.x >= right_edge:
+            boy.x = right_edge
+            boy.face_dir = -1
+
+        elif boy.x <= left_edge:
+            boy.x = left_edge
+            boy.face_dir = 1
 
     def draw(self, boy):
         if boy.face_dir == 1:
